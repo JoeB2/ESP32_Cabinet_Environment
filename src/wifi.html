@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta name="file" content="set_bounds.html">
+    <meta name="author" content="Joe Belson 20210822">
+    <meta name="what" content="esp8266 html for WiFi connected temp/humidity bounds.">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Set on/off relay bounds</title>
+  </head>
+
+  <body style="text-align: left;">
+    <hr>
+      <table class="calibrate">
+        <caption style="font-weight: bolder;">Set Temp & Humidity Relays SSID : PWD<br><br></caption>
+          <thead>
+            <tr style="font-size: 2.0vw;font-weight: bold;">
+              <th>SSID</th>
+              <th>PWD</th>
+            </tr>
+          </thead>
+          <tbody>
+              <tr>
+                  <td><input type="text" id="SSID" name="cred" onclick="f_update()" placeholder="WiFi SSID"/></td>
+                  <td><input type="text" id="PWD" name="cred" onclick="f_update()" placeholder="WiFi PWD"/></td>
+                  <td><input type="submit" id="submit" onclick="f_submit()" hidden = isDHCP.checked></td>
+              </tr>
+          </tbody>
+      </table>
+      <br>
+      <label for="dhcp">DHCP:</label><input type="checkbox" id="isDHCP" onclick="f_dhcp(checked)">
+      <table><tr><td></td></tr></table>
+      <table name="dhcp" class="calibrate">
+        <tr style="font-size: 2.0vw;font-weight: bold;">
+          <td><label for="IP">IP</label></td>
+          <td><label for="GW">Gateway</label></td>
+          <td><label for="MASK">Mask</label></td>
+        </tr>
+        <tr>
+          <td>
+               <input type="text"  id="IP"
+                style="width: 7rem;" onclick="f_update()" placeholder="Fixed IP"
+                minlength="7" maxlength="15" size="15"
+                required pattern="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$">
+            </td>
+            <td>
+              <input type="text" id="GW"
+                style="width: 7rem;" onclick="f_update()" placeholder="Network Gateway"
+                minlength="7" maxlength="15" size="15"
+                required pattern="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$">
+            </td>
+            <td>
+              <input type="text" id="MASK"
+              style="width: 7rem;" onclick="f_update()" placeholder="Network Mask"
+              minlength="7" maxlength="15" size="15"
+              required pattern="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$">
+            </td>
+            <td><input type="submit" id="submit2" style="width:4.5rem;" onclick="f_submit()"/></td>
+          </tr>
+        </table>
+        <br>
+        <input type="submit" value="Refresh" style="width:4.5rem;" onclick="f_refresh()"/>
+    </body>
+    <script language = "javascript" type = "text/javascript">
+  
+        let webSock       = new WebSocket('ws://'+window.location.hostname+':80');
+        webSock.onopen    = function(evt){f_refresh();}
+        webSock.onmessage = function(evt){f_webSockOnMessage(evt);}
+        webSock.onerror   = function(evt){f_webSockOnError(evt);}
+        const readings=0, settingsRefresh=1, settingsSet=2, wifiRefresh=3, wifiSet=4;
+        var str= '{"SSID":"0","PWD":"0", "IP":"0","GW":"0","MASK":"0","isDHCP":false}';
+        let updates = false;
+
+        function f_webSockOnMessage(evt){// need to get the inbound json to fill in the form
+          if(updates)return;
+          if(typeof evt.data === "string"){
+              const j=JSON.parse(evt.data);
+              if(!j.hasOwnProperty("MASK"))return;
+              for(let key in j){
+                let element = document.getElementById(key);
+                if(element == "null")continue;
+                switch(key){
+                    case "isDHCP":
+                      element.checked = j[key];
+                      f_dhcp(j[key]);
+                      continue;
+                    case "PWD": element.value = "**********";continue;
+                    default: element.value=j[key]==-999?"n/a":j[key];
+              }
+           }
+          }
+        }
+        function f_webSockOnError(evt){}
+        function f_refresh(){
+          updates=false;
+          webSock.send("{src:"+wifiRefresh+"}");
+        }
+        function f_update(){
+          updates = true;
+        }
+        function f_submit(){
+          j=JSON.parse(str);
+          for(var key in j){
+            if(key=="isDHCP")j[key]=document.getElementById(key).checked;
+            else j[key]=document.getElementById(key).value;
+          }
+          j.src=wifiSet;
+          webSock.send(JSON.stringify(j));
+          updates = false;
+        }
+        function f_dhcp(checked){
+          const n=document.getElementsByName("dhcp");
+          if(checked){
+            for(var i=0;i<n.length;i++)n[i].setAttribute("hidden", "hidden");
+            document.getElementById("submit").removeAttribute("hidden");
+          }else{
+            for(var i=0;i<n.length;i++)n[i].removeAttribute("hidden");
+            document.getElementById("submit").setAttribute("hidden", "hidden");
+          }
+          updates=true;
+        }
+     </script>
+  </html>

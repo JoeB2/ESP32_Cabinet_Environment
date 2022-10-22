@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta name="file" content="set_bounds.html">
+    <meta name="author" content="Joe Belson 20221009">
+    <meta name="what" content="esp32 html for WiFi connected temp/humidity bounds.">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Set Temp / Humidity Bounds for 110VAC relays</title>
+  </head>
+<style type="text/css">
+      body {font-size: 12px; background-color: #f6f6ff;font-family: Calibri, Myriad;text-align: center;}
+      body p{text-align: left;}
+      table th{text-align: center;width: 23pt;border-bottom:2px solid rgb(8, 8, 8);}
+      table.calibrate {font-size:smaller ; margin-left:10px; margin-right: auto;  width: 300px;  border: 1px solid black; border-style:solid;}
+      table.calibrate caption {	background-color: #f79646;	color: #fff;	font-size: large;	font-weight: bold;	letter-spacing: .3em;}
+      table.calibrate thead th {
+                  padding: 3px;
+                  background-color: #fde9d9;
+                  font-size:16px;
+                  border-width: 1px;
+                  border-style: solid;
+                  border-color: #f79646 #ccc;
+      }
+      table.calibrate td {
+                  font-size: 12px;
+                  font-weight: bold;
+                  text-align: center;
+                  padding: 2px;
+                  background-color:shite;
+                  color:black;
+                  font-weight: bold;
+      }
+</style>
+  <body style="text-align: left;">
+    <input id="help" type="button" value="Help" onclick="f_help()"/><br><br>
+    <table class="calibrate">
+      <caption>Set Temp & Humidity Bounds</caption>
+        <thead>
+            <tr>
+                <th><label for="t1_on">Heat On Temp<sup>&degf</sup></label></th>
+                <th><label for="t1_off">Heat Off Temp<sup>&degf</sup></label></th>
+                <th><label for="h1_on">Humid On<sup>%</sup></label></th>
+                <th><label for="h1_off">Humid Off<sup>%</sup></label></th>
+                <th><label for="delay">Sensor<br>Delay(sec)</label></th>
+            </tr>
+            <tr>
+                  <td><input type="number" id="t1_on"  name="limit" min="55" max="87"     onchange="f_updates()"></td>
+                  <td><input type="number" id="t1_off" name="limit" min="60" max="87"     onchange="f_updates()"></td>
+                  <td><input type="number" id="h1_on"  name="limit" min="50" max="87"     onchange="f_updates()"></td>
+                  <td><input type="number" id="h1_off" name="limit" min="50" max="90"     onchange="f_updates()"></td>
+                  <td><input type="number" id="delay"  name="limit" min="1"  max="300000" onchange="f_updates()"></td>
+            </tr>
+        </thead>
+    </table>
+    <input id="Submit" type="submit" value="Submit" onclick="f_submit()" style="margin: 10px 10px; color: black; background-color: rgb(248, 138, 171); font-weight: bold;"/>
+    <input id="refresh" type="submit" value="Refresh" onclick="f_refresh()" style="margin: 1px; color: black; background-color: yellow; font-weight: bold;"/>
+    
+    <p name="settings"  hidden><b style="color:black">Current MCU Settings (inbound, submitted)</b></p>
+    <p name="settings" id="json1" hidden>JSON1</p>
+    <p name="settings" id="json2" hidden>JSON2</p>
+
+  </body>
+  <script language = "javascript" type = "text/javascript">
+
+      let webSock       = new WebSocket('ws://'+window.location.hostname+':80');
+      webSock.onopen    = function(evt){f_refresh();}
+      webSock.onmessage = function(evt){f_webSockOnMessage(evt);}
+      webSock.onerror   = function(evt){f_webSockOnError(evt);}
+      webSock.onclose   = function(evt){f_webSockOnClose(evt);}
+
+      let updates = false; // websock updates when false; true after user param change
+      const readings=0, settingsRefresh=1, settingsSet=2, wifiRefresh=3, wifiSet=4;
+
+      function f_webSockOnMessage(evt){
+        if(updates)return;  // we will only apply the json if the corresponding form field is ""
+        if(typeof evt.data === "string"){
+          j=JSON.parse(evt.data);
+          document.getElementById("json1").innerHTML=evt.data;
+            for(var key in j[1]){
+              console.log(key);
+                if(j[1].hasOwnProperty(key)){
+                  console.log(key);
+                    if(document.getElementById(key).value=="")
+                    document.getElementById(key).value=key!="delay"?j[1][key]:j[1][key]/1000;
+                }
+            }
+        }
+      }
+      function f_webSockOnError(evt){}
+      function f_submit(){
+        var str= '[{"t1":0,"h1":0},{"t1_on":75,"t1_off":82,"h1_on":75,"h1_off":85, "delay":3000},{"src":'+settingsSet+'}]';
+        console.log(str);
+
+        j=JSON.parse(str);
+
+        for(var key in j[1]){
+          console.log(key);
+            j[1][key]=document.getElementById(key).value*1;
+            if(key=="delay")j[1][key]=j[1][key]*1000;
+        }
+        document.getElementById("json2").innerHTML = JSON.stringify(j);
+        console.log("sending:", JSON.stringify(j));
+        webSock.send(JSON.stringify(j));
+        updates = false;  // reset after refresh/submit
+      }
+      function f_refresh(){
+        var x=document.getElementsByName("limit");
+        for(var i=0;i<x.length;i++)x[i].value="";
+        updates = false;  // reset after refresh/submit
+        console.log("{src:"+settingsRefresh+"}");
+        webSock.send("{src:"+settingsRefresh+"}");
+      }
+      function f_updates(){
+        updates = true;
+      }
+      function f_help(){
+        let v = document.getElementById("help");
+        let settings = document.getElementsByName("settings");
+
+        settings.forEach((setting) => {
+            setting.hidden = v.value=="Help"?false:true;
+          });
+          v.value=v.value=="Help"?"Un-Help":"Help";
+      }
+  </script>
+</html>
