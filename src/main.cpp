@@ -134,7 +134,7 @@ Serial.printf("%i : T:%.2f\tH: %.2f\n", __LINE__, dht.readTemperature(true), dht
     webSock.cleanupClients();
 
 #ifdef dbg
-  Serial.printf("\n%i : IP: %s\nLoop: sv: %s\n", __LINE__, WiFi.localIP().toString(), sv.toStr().c_str());Serial.flush();
+  Serial.printf("\n%i : IP: %s\nLoop: sv: %s\n", __LINE__, WiFi.localIP().toString().c_str(), sv.toStr().c_str());Serial.flush();
 #endif
     lastMillis = millis();
   }
@@ -160,8 +160,8 @@ Serial.printf("%i : T:%.2f\tH: %.2f\n", __LINE__, dht.readTemperature(true), dht
       case WS_EVT_DATA:
         AwsFrameInfo * info = (AwsFrameInfo*)arg;
         if(info->final && !info->index && info->len == len && info->opcode == WS_TEXT){
-            data[len]=0;
-            std::string const s=(char *)data;
+//            data[len]=0;
+            std::string const s=std::string((char *)data, len);
 #ifdef dbg
   Serial.printf("\n%i : %s : WS: data: %s, %i\n", __LINE__, __FUNCTION__, s.c_str(), s.length());Serial.flush();
 #endif
@@ -251,7 +251,7 @@ Serial.printf("%i : T:%.2f\tH: %.2f\n", __LINE__, dht.readTemperature(true), dht
   }
   void update_sMsgFromString(const std::string &json, systemValues_t &p){
 #ifdef dbg
-  Serial.printf("%i : %s : JSON: %s\n", __LINE__, __FUNCTION__, json);Serial.flush();
+  Serial.printf("%i : %s : JSON: %s\n", __LINE__, __FUNCTION__, json.c_str());Serial.flush();
 #endif
     p.t1_on     =::atof(valFromJson(json, "t1_on").c_str());
     p.t1_off    =::atof(valFromJson(json, "t1_off").c_str());
@@ -309,8 +309,8 @@ Serial.printf("%i : T:%.2f\tH: %.2f\n", __LINE__, dht.readTemperature(true), dht
 #ifdef dbg
   Serial.printf("\n");Serial.flush();
   Serial.printf("%i : %s : IP: %s, GW: %s, Mask: %s, DNS: %s\n"
-          , __LINE__, __FUNCTION__, WiFi.localIP().toString(), WiFi.gatewayIP().toString()
-          , WiFi.subnetMask().toString().c_str(), WiFi.subnetMask().toString().c_str(), WiFi.dnsIP().toString());Serial.flush();
+          , __LINE__, __FUNCTION__, WiFi.localIP().toString().c_str(), WiFi.gatewayIP().toString().cstr()
+          , WiFi.subnetMask().toString().c_str(), WiFi.subnetMask().toString().c_str());Serial.flush();
 #endif
     return(WiFi.status() ^ WL_CONNECTED);
   }
